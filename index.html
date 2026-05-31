@@ -2,17 +2,16 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Smart IoT Dashboard</title>
-
   <style>
     body {
-      font-family: Arial;
+      font-family: Arial, sans-serif;
       background: #0f172a;
       color: white;
       text-align: center;
       padding: 20px;
     }
-
     .card {
       background: #1e293b;
       padding: 20px;
@@ -20,29 +19,21 @@
       width: 300px;
       border-radius: 10px;
     }
-
     button {
       padding: 10px 20px;
       margin: 10px;
       border: none;
       border-radius: 5px;
       cursor: pointer;
+      font-size: 1rem;
     }
-
-    .on {
-      background: green;
-      color: white;
-    }
-
-    .off {
-      background: red;
-      color: white;
-    }
+    .on  { background: green; color: white; }
+    .off { background: red;   color: white; }
+    #status { font-size: 0.9rem; color: #94a3b8; margin-top: 8px; }
+    #light-state { font-weight: bold; }
   </style>
 </head>
-
 <body>
-
   <h1>Smart IoT Dashboard</h1>
 
   <div class="card">
@@ -57,9 +48,68 @@
 
   <div class="card">
     <h2>Light Control</h2>
-    <button class="on">ON</button>
-    <button class="off">OFF</button>
+    <p>Status: <span id="light-state">--</span></p>
+    <button class="on"  id="btn-on"  aria-label="Turn light on">ON</button>
+    <button class="off" id="btn-off" aria-label="Turn light off">OFF</button>
+    <p id="status"></p>
   </div>
 
+  <script type="module">
+    /* Importing only what this dashboard needs — app, database, and analytics */
+    import { initializeApp }      from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
+    import { getAnalytics }       from "https://www.gstatic.com/firebasejs/10.7.1/firebase-analytics.js";
+    import { getDatabase, ref, set, onValue } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-database.js";
+
+    /* Firebase project credentials */
+    const firebaseConfig = {
+      apiKey:            "AIzaSyDbYSuywoD3I7qJAOnexZ3YlexC3Z0kdAw",
+      authDomain:        "control-system-8d01c.firebaseapp.com",
+      databaseURL:       "https://control-system-8d01c-default-rtdb.europe-west1.firebasedatabase.app",
+      projectId:         "control-system-8d01c",
+      storageBucket:     "control-system-8d01c.firebasestorage.app",
+      messagingSenderId: "557951023852",
+      appId:             "1:557951023852:web:8863d9d3a31eac0ee5c3c9",
+      measurementId:     "G-65BHJT4G3N"
+    };
+
+    /* Start Firebase and connect to the Realtime Database */
+    const app       = initializeApp(firebaseConfig);
+    const analytics = getAnalytics(app);   /* tracks page visits and usage events */
+    const db        = getDatabase(app);
+
+    const statusEl     = document.getElementById("status");
+    const lightStateEl = document.getElementById("light-state");
+
+    /* Listen for live temperature changes and update the page */
+    onValue(ref(db, "temperature"), (snap) => {
+      document.getElementById("temp").innerText =
+        snap.val() !== null ? `${snap.val()} °C` : "-- °C";
+    });
+
+    /* Listen for live humidity changes and update the page */
+    onValue(ref(db, "humidity"), (snap) => {
+      document.getElementById("hum").innerText =
+        snap.val() !== null ? `${snap.val()} %` : "-- %";
+    });
+
+    /* Listen for light state changes and reflect them in the Status label */
+    onValue(ref(db, "light"), (snap) => {
+      lightStateEl.innerText = snap.val() ?? "--";
+    });
+
+    /* Write "ON" or "OFF" to Firebase when a button is pressed */
+    async function setLight(value) {
+      statusEl.innerText = "Sending…";
+      try {
+        await set(ref(db, "light"), value);
+        statusEl.innerText = `✓ Light turned ${value}`;
+      } catch (err) {
+        statusEl.innerText = `✗ Failed: ${err.message}`;
+      }
+    }
+
+    document.getElementById("btn-on").addEventListener("click",  () => setLight("ON"));
+    document.getElementById("btn-off").addEventListener("click", () => setLight("OFF"));
+  </script>
 </body>
 </html>
